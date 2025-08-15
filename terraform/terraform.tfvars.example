@@ -1,0 +1,11 @@
+# terraform.tfvars.example
+# Copy this file to terraform.tfvars and update the values
+
+# Required: Your GCP Project ID
+project_id = "wikijs-469107"
+
+# Optional: GCP Region (defaults to us-central1)
+region = "us-central1"
+
+# Optional: GCP Zone (defaults to us-central1-a)  
+zone = "us-central1-a"

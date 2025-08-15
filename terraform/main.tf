@@ -66,6 +66,34 @@ resource "google_artifact_registry_repository_iam_member" "wiki_js_sa_writer" {
   member     = "serviceAccount:${google_service_account.wiki_js_sa.email}"
 }
 
+# IAM binding for service account - Cloud Run Developer
+resource "google_project_iam_member" "wiki_js_sa_run_developer" {
+  project = var.project_id
+  role    = "roles/run.developer"
+  member  = "serviceAccount:${google_service_account.wiki_js_sa.email}"
+}
+
+# IAM binding for service account - Logs Writer
+resource "google_project_iam_member" "wiki_js_sa_logs_writer" {
+  project = var.project_id
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${google_service_account.wiki_js_sa.email}"
+}
+
+# IAM binding for service account - Logs Reader
+resource "google_project_iam_member" "wiki_js_sa_logs_reader" {
+  project = var.project_id
+  role    = "roles/logging.viewer"
+  member  = "serviceAccount:${google_service_account.wiki_js_sa.email}"
+}
+
+# IAM binding for service account - Cloud SQL Client (for database access)
+resource "google_project_iam_member" "wiki_js_sa_sql_client" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.wiki_js_sa.email}"
+}
+
 # Cloud SQL PostgreSQL Instance
 resource "google_sql_database_instance" "wiki_postgres" {
   name             = "wiki-postgres-instance"
@@ -119,7 +147,8 @@ resource "google_cloud_run_v2_service" "wiki_js" {
     service_account = google_service_account.wiki_js_sa.email
     
     containers {
-      image = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.wiki_js_repo.repository_id}/wiki:2"
+      # Use a placeholder image initially - will be updated after image push
+      image = "gcr.io/cloudrun/hello"
       
       ports {
         container_port = 3000
@@ -190,49 +219,53 @@ resource "google_cloud_run_service_iam_member" "public_access" {
 }
 
 # Cloud Build trigger for pushing image to Artifact Registry (optional)
-resource "google_cloudbuild_trigger" "wiki_js_build" {
-  name        = "wiki-js-build"
-  description = "Build and push Wiki.js image to Artifact Registry"
-  
-  github {
-    owner = "requarks"  # Wiki.js repository owner
-    name  = "wiki"      # Repository name
-    push {
-      branch = "^main$"
-    }
-  }
-  
-  build {
-    step {
-      name = "gcr.io/cloud-builders/docker"
-      args = [
-        "build",
-        "-t", "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.wiki_js_repo.repository_id}/wiki:2",
-        "-t", "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.wiki_js_repo.repository_id}/wiki:latest",
-        "."
-      ]
-    }
-    
-    step {
-      name = "gcr.io/cloud-builders/docker"
-      args = [
-        "push", 
-        "--all-tags",
-        "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.wiki_js_repo.repository_id}/wiki"
-      ]
-    }
-    
-    options {
-      logging = "CLOUD_LOGGING_ONLY"
-    }
-  }
-  
-  service_account = google_service_account.wiki_js_sa.id
-  
-  depends_on = [
-    google_artifact_registry_repository_iam_member.wiki_js_sa_writer
-  ]
-}
+# Uncomment and configure if you want to set up automated builds from GitHub
+# Requires connecting your GitHub repository to Cloud Build first
+# Visit: https://console.cloud.google.com/cloud-build/triggers to connect
+
+# resource "google_cloudbuild_trigger" "wiki_js_build" {
+#   name        = "wiki-js-build"
+#   description = "Build and push Wiki.js image to Artifact Registry"
+#   
+#   github {
+#     owner = "requarks"  # Wiki.js repository owner
+#     name  = "wiki"      # Repository name
+#     push {
+#       branch = "^main$"
+#     }
+#   }
+#   
+#   build {
+#     step {
+#       name = "gcr.io/cloud-builders/docker"
+#       args = [
+#         "build",
+#         "-t", "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.wiki_js_repo.repository_id}/wiki:2",
+#         "-t", "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.wiki_js_repo.repository_id}/wiki:latest",
+#         "."
+#       ]
+#     }
+#     
+#     step {
+#       name = "gcr.io/cloud-builders/docker"
+#       args = [
+#         "push", 
+#         "--all-tags",
+#         "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.wiki_js_repo.repository_id}/wiki"
+#       ]
+#     }
+#     
+#     options {
+#       logging = "CLOUD_LOGGING_ONLY"
+#     }
+#   }
+#   
+#   service_account = google_service_account.wiki_js_sa.id
+#   
+#   depends_on = [
+#     google_artifact_registry_repository_iam_member.wiki_js_sa_writer
+#   ]
+# }
 
 # Outputs
 output "wiki_js_url" {

@@ -60,6 +60,27 @@ echo -e "${YELLOW}Using Region: $REGION${NC}"
 echo -e "${YELLOW}Checking gcloud authentication...${NC}"
 gcloud config set project $PROJECT_ID
 
+# Enable required APIs manually (in case Terraform doesn't have permission)
+echo -e "${YELLOW}Enabling required GCP APIs...${NC}"
+echo "This may take a few minutes..."
+
+REQUIRED_APIS=(
+    "cloudresourcemanager.googleapis.com"
+    "cloudsql.googleapis.com"
+    "run.googleapis.com"
+    "artifactregistry.googleapis.com"
+    "cloudbuild.googleapis.com"
+    "iam.googleapis.com"
+    "compute.googleapis.com"
+)
+
+for api in "${REQUIRED_APIS[@]}"; do
+    echo -e "${YELLOW}Enabling $api...${NC}"
+    gcloud services enable $api --project=$PROJECT_ID
+done
+
+echo -e "${GREEN}All APIs enabled successfully!${NC}"
+
 # Change to terraform directory
 cd terraform
 

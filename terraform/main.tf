@@ -31,31 +31,21 @@ provider "google" {
   region  = var.region
 }
 
-# Enable required APIs
-resource "google_project_service" "required_apis" {
-  for_each = toset([
-    "cloudresourcemanager.googleapis.com",
-    "cloudsql.googleapis.com",
-    "run.googleapis.com",
-    "artifactregistry.googleapis.com",
-    "cloudbuild.googleapis.com",
-    "iam.googleapis.com",
-    "compute.googleapis.com"
-  ])
-  
-  project = var.project_id
-  service = each.value
-  
-  disable_on_destroy = false
-}
+# NOTE: APIs must be enabled manually or with sufficient permissions
+# Required APIs:
+# - cloudresourcemanager.googleapis.com
+# - cloudsql.googleapis.com  
+# - run.googleapis.com
+# - artifactregistry.googleapis.com
+# - cloudbuild.googleapis.com
+# - iam.googleapis.com
+# - compute.googleapis.com
 
 # Service Account for Wiki.js
 resource "google_service_account" "wiki_js_sa" {
   account_id   = "wiki-js-sa"
   display_name = "Wiki.js Service Account"
   project      = var.project_id
-  
-  depends_on = [google_project_service.required_apis]
 }
 
 # Artifact Registry Repository
@@ -64,8 +54,6 @@ resource "google_artifact_registry_repository" "wiki_js_repo" {
   repository_id = "wiki-js"
   description   = "Repository for Wiki.js container images"
   format        = "DOCKER"
-  
-  depends_on = [google_project_service.required_apis]
 }
 
 # IAM binding for service account to push to Artifact Registry
@@ -106,8 +94,6 @@ resource "google_sql_database_instance" "wiki_postgres" {
   }
   
   deletion_protection = false
-  
-  depends_on = [google_project_service.required_apis]
 }
 
 # Cloud SQL Database
@@ -187,12 +173,6 @@ resource "google_cloud_run_v2_service" "wiki_js" {
     type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
     percent = 100
   }
-  
-  depends_on = [
-    google_project_service.required_apis,
-    google_sql_database_instance.wiki_postgres,
-    google_artifact_registry_repository.wiki_js_repo
-  ]
 }
 
 # IAM policy to allow unauthenticated access (allUsers)
@@ -242,11 +222,6 @@ resource "google_cloudbuild_trigger" "wiki_js_build" {
   }
   
   service_account = google_service_account.wiki_js_sa.id
-  
-  depends_on = [
-    google_project_service.required_apis,
-    google_artifact_registry_repository_iam_member.wiki_js_sa_writer
-  ]
 }
 
 # Outputs

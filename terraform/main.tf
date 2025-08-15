@@ -123,12 +123,26 @@ resource "google_sql_database_instance" "wiki_postgres" {
   }
   
   deletion_protection = false
+  
+  timeouts {
+    create = "10m"
+    update = "10m"
+    delete = "10m"
+  }
+}
+
+# Wait for Cloud SQL to be fully ready before creating database
+resource "time_sleep" "wait_for_sql_instance" {
+  depends_on = [google_sql_database_instance.wiki_postgres]
+  create_duration = "60s"
 }
 
 # Cloud SQL Database
 resource "google_sql_database" "wiki_database" {
   name     = "wiki"
   instance = google_sql_database_instance.wiki_postgres.name
+  
+  depends_on = [time_sleep.wait_for_sql_instance]
 }
 
 # Cloud SQL User
@@ -136,6 +150,8 @@ resource "google_sql_user" "wiki_user" {
   name     = "wikijs"
   instance = google_sql_database_instance.wiki_postgres.name
   password = "wikijsrocks"
+  
+  depends_on = [time_sleep.wait_for_sql_instance]
 }
 
 # Cloud Run Service

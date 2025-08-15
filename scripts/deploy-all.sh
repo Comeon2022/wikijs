@@ -2,7 +2,7 @@
 
 # =============================================================================
 # Wiki.js Complete Deployment Script
-# Version: 2.1.0
+# Version: 2.1.1
 # Last Updated: 2025-08-15
 # =============================================================================
 
@@ -21,7 +21,7 @@ echo "=============================================================="
 # Check terraform main.tf version
 if [ -f "terraform/main.tf" ]; then
     TERRAFORM_VERSION=$(grep "# Version:" terraform/main.tf | head -1 | awk '{print $3}' || echo "Unknown")
-    SCRIPT_VERSION="2.1.0"
+    SCRIPT_VERSION="2.1.1"
     echo -e "${BLUE}📋 Versions:${NC}"
     echo "   Deploy Script: $SCRIPT_VERSION"
     echo "   Terraform Config: $TERRAFORM_VERSION"

@@ -115,7 +115,7 @@ resource "google_sql_database_instance" "wiki_postgres" {
   region          = var.region
   
   settings {
-    tier = "db-e2-micro"  # Faster to provision than db-f1-micro
+    tier = "db-f1-micro"
     
     backup_configuration {
       enabled = true

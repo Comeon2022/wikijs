@@ -131,7 +131,56 @@ terraform plan
 echo -e "${YELLOW}  Applying Terraform deployment...${NC}"
 terraform apply -auto-approve
 
-echo -e "${GREEN}✓ Infrastructure deployed successfully!${NC}"
+# Check if Terraform completed successfully or if SQL instance needs time
+if terraform show | grep -q "google_sql_database_instance.wiki_postgres"; then
+    echo -e "${GREEN}✓ Infrastructure deployed successfully!${NC}"
+else
+    echo -e "${YELLOW}⏳ Terraform may have timed out on Cloud SQL. Checking instance status...${NC}"
+    
+    # Check if Cloud SQL instance exists and wait for it to be ready
+    SQL_INSTANCE_NAME="wiki-postgres-instance"
+    MAX_WAIT_MINUTES=15
+    WAIT_COUNT=0
+    
+    while [ $WAIT_COUNT -lt $MAX_WAIT_MINUTES ]; do
+        echo -e "${YELLOW}  Checking Cloud SQL instance status (attempt $((WAIT_COUNT + 1))/$MAX_WAIT_MINUTES)...${NC}"
+        
+        # Check if instance exists and get its status
+        SQL_STATUS=$(gcloud sql instances describe $SQL_INSTANCE_NAME --project=$PROJECT_ID --format="value(state)" 2>/dev/null || echo "NOT_FOUND")
+        
+        if [ "$SQL_STATUS" = "RUNNABLE" ]; then
+            echo -e "${GREEN}✓ Cloud SQL instance is ready!${NC}"
+            
+            # Import the instance to Terraform state if needed
+            echo -e "${YELLOW}  Importing Cloud SQL instance to Terraform state...${NC}"
+            terraform import google_sql_database_instance.wiki_postgres $PROJECT_ID:$SQL_INSTANCE_NAME 2>/dev/null || true
+            
+            # Complete the Terraform deployment
+            echo -e "${YELLOW}  Completing Terraform deployment...${NC}"
+            terraform plan
+            terraform apply -auto-approve
+            break
+            
+        elif [ "$SQL_STATUS" = "NOT_FOUND" ]; then
+            echo -e "${RED}❌ Cloud SQL instance not found. There may have been a creation error.${NC}"
+            echo "Please check the GCP Console for Cloud SQL instances."
+            exit 1
+            
+        else
+            echo -e "${YELLOW}  Cloud SQL instance status: $SQL_STATUS (waiting for RUNNABLE)${NC}"
+            echo -e "${YELLOW}  Waiting 60 seconds before next check...${NC}"
+            sleep 60
+            WAIT_COUNT=$((WAIT_COUNT + 1))
+        fi
+    done
+    
+    if [ $WAIT_COUNT -eq $MAX_WAIT_MINUTES ]; then
+        echo -e "${RED}❌ Cloud SQL instance did not become ready within $MAX_WAIT_MINUTES minutes${NC}"
+        echo "Current status: $SQL_STATUS"
+        echo "Please check the GCP Console for any issues."
+        exit 1
+    fi
+fi
 
 # Get the Artifact Registry URL
 ARTIFACT_URL=$(terraform output -raw artifact_registry_url)

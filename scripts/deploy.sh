@@ -10,12 +10,35 @@ NC='\033[0m' # No Color
 
 echo -e "${GREEN}Starting Wiki.js deployment to GCP Cloud Run${NC}"
 
-# Check if terraform.tfvars exists
+# Check if terraform.tfvars exists, create from example if not
 if [ ! -f "terraform/terraform.tfvars" ]; then
-    echo -e "${RED}Error: terraform/terraform.tfvars file not found!${NC}"
-    echo "Please copy terraform/terraform.tfvars.example to terraform/terraform.tfvars and update the values"
-    exit 1
+    echo -e "${YELLOW}terraform/terraform.tfvars not found. Creating from example...${NC}"
+    if [ -f "terraform/terraform.tfvars.example" ]; then
+        cp terraform/terraform.tfvars.example terraform/terraform.tfvars
+        echo -e "${GREEN}Created terraform/terraform.tfvars from example file.${NC}"
+    else
+        echo -e "${RED}Error: terraform/terraform.tfvars.example not found!${NC}"
+        echo "Please ensure the terraform.tfvars.example file exists in the terraform/ directory"
+        exit 1
+    fi
 fi
+
+# Ask user if they've entered their project ID
+while true; do
+    read -p "Did you enter your project ID in terraform/terraform.tfvars? (y/n): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo -e "${GREEN}Great! Continuing with deployment...${NC}"
+        break
+    elif [[ $REPLY =~ ^[Nn]$ ]]; then
+        echo -e "${YELLOW}Opening terraform/terraform.tfvars for editing...${NC}"
+        echo -e "${YELLOW}Please change 'your-gcp-project-id' to your actual GCP project ID${NC}"
+        nano terraform/terraform.tfvars
+        echo -e "${GREEN}File saved. Let's check again...${NC}"
+    else
+        echo "Please answer 'y' for yes or 'n' for no"
+    fi
+done
 
 # Get project ID from terraform.tfvars
 PROJECT_ID=$(grep -E '^project_id' terraform/terraform.tfvars | cut -d'"' -f2)

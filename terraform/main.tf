@@ -1,3 +1,17 @@
+# =============================================================================
+# Wiki.js on Google Cloud Run - Terraform Configuration
+# Version: 2.1.0
+# Last Updated: 2025-08-15
+# 
+# Changes in v2.1.0:
+# - Extended Cloud SQL timeout to 30 minutes
+# - Added comprehensive IAM permissions for service account
+# - Added time_sleep resource for SQL readiness
+# - Commented out Cloud Build trigger
+# - Fixed container port to 3000 (Wiki.js standard)
+# - Added db-e2-micro tier for faster provisioning
+# =============================================================================
+
 # Variables
 variable "project_id" {
   description = "GCP Project ID"
@@ -101,7 +115,7 @@ resource "google_sql_database_instance" "wiki_postgres" {
   region          = var.region
   
   settings {
-    tier = "db-f1-micro"
+    tier = "db-e2-micro"  # Faster to provision than db-f1-micro
     
     backup_configuration {
       enabled = true
@@ -125,9 +139,9 @@ resource "google_sql_database_instance" "wiki_postgres" {
   deletion_protection = false
   
   timeouts {
-    create = "10m"
-    update = "10m"
-    delete = "10m"
+    create = "30m"
+    update = "30m"  
+    delete = "30m"
   }
 }
 

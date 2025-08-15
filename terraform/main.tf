@@ -31,10 +31,11 @@ provider "google" {
   region  = var.region
 }
 
-# NOTE: APIs must be enabled manually or with sufficient permissions
-# Required APIs:
+# NOTE: Required APIs are enabled by the deploy script
+# If running Terraform manually, ensure these APIs are enabled:
 # - cloudresourcemanager.googleapis.com
-# - cloudsql.googleapis.com  
+# - sqladmin.googleapis.com (Cloud SQL Admin API)
+# - sql-component.googleapis.com (Cloud SQL API)
 # - run.googleapis.com
 # - artifactregistry.googleapis.com
 # - cloudbuild.googleapis.com
@@ -173,6 +174,11 @@ resource "google_cloud_run_v2_service" "wiki_js" {
     type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
     percent = 100
   }
+  
+  depends_on = [
+    google_sql_database_instance.wiki_postgres,
+    google_artifact_registry_repository.wiki_js_repo
+  ]
 }
 
 # IAM policy to allow unauthenticated access (allUsers)
@@ -222,6 +228,10 @@ resource "google_cloudbuild_trigger" "wiki_js_build" {
   }
   
   service_account = google_service_account.wiki_js_sa.id
+  
+  depends_on = [
+    google_artifact_registry_repository_iam_member.wiki_js_sa_writer
+  ]
 }
 
 # Outputs

@@ -60,13 +60,14 @@ echo -e "${YELLOW}Using Region: $REGION${NC}"
 echo -e "${YELLOW}Checking gcloud authentication...${NC}"
 gcloud config set project $PROJECT_ID
 
-# Enable required APIs manually (in case Terraform doesn't have permission)
-echo -e "${YELLOW}Enabling required GCP APIs...${NC}"
-echo "This may take a few minutes..."
+# Try to enable APIs, but continue if it fails
+echo -e "${YELLOW}Attempting to enable required GCP APIs...${NC}"
+echo "If this fails due to permissions, you can enable APIs manually in GCP Console"
 
 REQUIRED_APIS=(
     "cloudresourcemanager.googleapis.com"
-    "cloudsql.googleapis.com"
+    "sqladmin.googleapis.com"
+    "sql-component.googleapis.com"
     "run.googleapis.com"
     "artifactregistry.googleapis.com"
     "cloudbuild.googleapis.com"
@@ -74,12 +75,31 @@ REQUIRED_APIS=(
     "compute.googleapis.com"
 )
 
+API_ENABLE_FAILED=false
+
 for api in "${REQUIRED_APIS[@]}"; do
     echo -e "${YELLOW}Enabling $api...${NC}"
-    gcloud services enable $api --project=$PROJECT_ID
+    if ! gcloud services enable $api --project=$PROJECT_ID 2>/dev/null; then
+        echo -e "${RED}Failed to enable $api - you may need to enable it manually${NC}"
+        API_ENABLE_FAILED=true
+    else
+        echo -e "${GREEN}✓ $api enabled${NC}"
+    fi
 done
 
-echo -e "${GREEN}All APIs enabled successfully!${NC}"
+if [ "$API_ENABLE_FAILED" = true ]; then
+    echo -e "${YELLOW}Some APIs failed to enable automatically.${NC}"
+    echo -e "${YELLOW}You can enable them manually at: https://console.developers.google.com/apis/dashboard?project=$PROJECT_ID${NC}"
+    echo -e "${YELLOW}Required APIs: cloudresourcemanager, cloudsql, run, artifactregistry, cloudbuild, iam, compute${NC}"
+    read -p "Do you want to continue anyway? (y/n): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Deployment cancelled. Please enable the APIs manually and try again."
+        exit 1
+    fi
+else
+    echo -e "${GREEN}All APIs enabled successfully!${NC}"
+fi
 
 # Change to terraform directory
 cd terraform
